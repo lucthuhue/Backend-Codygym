@@ -1,61 +1,12 @@
-# Báo Cáo Thực Hành: Xây Dựng Cơ Sở Dữ Liệu Quản Lý Sinh Viên
+# Báo Cáo Phân Tích Độ Bất Nhất (Gap Analysis) - Dự Án HealthSync
 
-## 1. Mục tiêu
-- Luyện tập và nắm vững các thao tác tạo bảng (`CREATE TABLE`) trên MySQL Workbench bằng cả 2 phương pháp:
-  - Giao diện đồ họa (GUI).
-  - Câu lệnh truy vấn SQL.
+Bản thiết kế cơ sở dữ liệu cũ (Legacy Schema) bộc lộ sự thiếu hụt nghiêm trọng so với UML Activity Diagram của bộ phận BA qua 3 điểm vênh cốt lõi sau:
 
----
+1. **Sai lệch mô hình hóa trạng thái (State Anti-pattern):** 
+Cột `is_active BOOLEAN` chỉ biểu diễn được trạng thái nhị phân (Đúng/Sai). Trong khi đó, quy trình nghiệp vụ yêu cầu một vòng đời 5 trạng thái liên tục: `PENDING` -> `CONFIRMED` -> `CHECKED_IN` -> `COMPLETED` / `CANCELLED`. Việc ép kiểu Boolean khiến hệ thống không thể biết lịch hẹn đang ở giai đoạn chờ, đã đến khám hay đã hoàn tất.
 
-## 2. Cách 1: Tạo bảng bằng giao diện đồ họa (GUI) trên MySQL Workbench
+2. **Mất dấu vết dòng tiền và chế tài (Financial & Auditing Gaps):** 
+Quy trình yêu cầu đặt cọc (`deposit_amount`), phạt tiền khi hủy lịch sau xác nhận (`penalty_fee`) và lưu nguyên nhân (`cancel_reason`). Thiết kế cũ không hề có các trường này, dẫn đến việc phòng khám thất thoát doanh thu phạt cọc, không thể đối soát sổ sách kế toán và thiếu minh bạch khi xử lý khiếu nại của bệnh nhân.
 
-### A. Tạo bảng `Class` (gồm các trường: id, name):
-1. **Mở kết nối:** Khởi động MySQL Workbench và đăng nhập vào kết nối máy chủ MySQL.
-2. **Chọn CSDL:** Tại khung **Navigator -> Schemas**, tìm đến schema `student_management` (hoặc `student-management`).
-3. **Mở giao diện tạo bảng:** Nhấp chuột phải vào schema `student_management` (hoặc mục **Tables** bên dưới schema) $\rightarrow$ chọn **Create Table...**.
-4. **Thiết lập thông tin bảng `Class`:**
-   - Tại ô **Table Name**, nhập: `Class`.
-   - Thêm các cột (Columns) tương ứng:
-     - `id`: Kiểu dữ liệu `INT`, tích chọn `PK` (Primary Key), `NN` (Not Null), `AI` (Auto Increment).
-     - `name`: Kiểu dữ liệu `VARCHAR(100)`, tích chọn `NN` (Not Null).
-5. **Thực thi:** Nhấp nút **Apply** ở góc dưới bên phải, kiểm tra câu lệnh DDL tự sinh rồi tiếp tục bấm **Apply** $\rightarrow$ bấm **Finish**.
-
-### B. Tạo bảng `Teacher` (gồm các trường: id, name, age, country):
-1. Nhấp chuột phải vào schema hoặc mục **Tables** $\rightarrow$ chọn **Create Table...**.
-2. **Thiết lập thông tin bảng `Teacher`:**
-   - Tại ô **Table Name**, nhập: `Teacher`.
-   - Thêm các cột (Columns) tương ứng:
-     - `id`: Kiểu dữ liệu `INT`, tích chọn `PK`, `NN`, `AI`.
-     - `name`: Kiểu dữ liệu `VARCHAR(100)`, tích chọn `NN`.
-     - `age`: Kiểu dữ liệu `INT`.
-     - `country`: Kiểu dữ liệu `VARCHAR(50)`.
-3. **Thực thi:** Nhấp nút **Apply** $\rightarrow$ bấm tiếp **Apply** $\rightarrow$ chọn **Finish** để hoàn tất.
-4. **Kiểm tra:** Tại danh sách mục **Tables** của schema, bấm biểu tượng **Refresh**, cả 2 bảng `Class` và `Teacher` đã hiển thị đầy đủ.
-
----
-
-## 3. Cách 2: Tạo bảng sử dụng câu lệnh SQL
-
-### File mã nguồn: `student_management.sql`
-
-```sql
--- 1. Tạo và sử dụng cơ sở dữ liệu
-CREATE DATABASE IF NOT EXISTS `student_management`
-    CHARACTER SET utf8mb4
-    COLLATE utf8mb4_unicode_ci;
-
-USE `student_management`;
-
--- 2. Tạo bảng Class (id, name)
-CREATE TABLE IF NOT EXISTS `Class` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(100) NOT NULL
-);
-
--- 3. Tạo bảng Teacher (id, name, age, country)
-CREATE TABLE IF NOT EXISTS `Teacher` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `name` VARCHAR(100) NOT NULL,
-    `age` INT,
-    `country` VARCHAR(50)
-);
+3. **Gãy đứt chuỗi nghiệp vụ khám bệnh (Missing Domain Entity):** 
+Bước cuối cùng của Activity Diagram là bác sĩ kê đơn thuốc khi hoàn tất khám. Bản thiết kế cũ hoàn toàn bỏ quên thực thể `Prescriptions`, khiến kết quả chẩn đoán và điều trị không có nơi lưu trữ, làm đứt gãy luồng vận hành cốt lõi của một phòng khám y tế.
